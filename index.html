@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>WealthLens · Net Worth Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --card: #1c1c1c;
+    --border: #2a2a2a;
+    --accent: #c8f060;
+    --accent2: #f0b860;
+    --accent3: #60c8f0;
+    --text: #f0ede8;
+    --muted: #888;
+    --bull: #c8f060;
+    --bear: #ff6b6b;
+    --radius: 16px;
+    --tag-cash: #60c8f0;
+    --tag-invested: #c8f060;
+    --tag-crypto: #f0b860;
+    --tag-other: #a088d0;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 80% 10%, rgba(200,240,96,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 10% 90%, rgba(96,200,240,0.04) 0%, transparent 60%);
+  }
+
+  .wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  .eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .eyebrow span { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 8px; animation: pulse 2s infinite; vertical-align: middle; }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(32px, 7vw, 52px);
+    line-height: 1.05;
+    margin-bottom: 8px;
+  }
+  h1 .accent { color: var(--accent); font-style: normal; }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .card-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 16px;
+  }
+  .card-title.accent  { color: var(--accent); }
+  .card-title.accent2 { color: var(--accent2); }
+  .card-title.accent3 { color: var(--accent3); }
+  .card-title.purple  { color: var(--tag-other); }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-full { margin-bottom: 16px; }
+
+  @media (max-width: 700px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* STAT ROWS */
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row .label { color: var(--muted); }
+  .stat-row .value { color: var(--text); font-weight: 500; }
+  .stat-row .value.bull { color: var(--bull); }
+  .stat-row .value.bear { color: var(--bear); }
+  .stat-row .value.accent2 { color: var(--accent2); }
+  .stat-row .value.accent3 { color: var(--accent3); }
+
+  /* YEAR NAV */
+  .year-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .year-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .year-btn:hover { border-color: var(--accent); color: var(--text); }
+  .year-btn.active { border-color: var(--accent); background: rgba(200,240,96,0.08); color: var(--accent); font-weight: 500; }
+
+  .nav-arrow {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 16px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .nav-arrow:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MONTH GRID */
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 500px) {
+    .month-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .month-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .month-cell:hover { border-color: var(--accent); }
+  .month-cell.active { border-color: var(--accent); background: rgba(200,240,96,0.06); }
+  .month-cell.has-data { border-color: #333; }
+  .month-cell.best { border-color: rgba(200,240,96,0.6) !important; background: rgba(200,240,96,0.08) !important; }
+  .month-cell.worst { border-color: rgba(255,107,107,0.6) !important; background: rgba(255,107,107,0.08) !important; }
+  .month-cell.active.best { border-color: var(--accent) !important; }
+  .month-cell.active.worst { border-color: var(--bear) !important; }
+
+  .month-cell .m-name {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .month-cell .m-total {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .month-cell .m-change {
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .month-cell .m-change.bull { color: var(--bull); }
+  .month-cell .m-change.bear { color: var(--bear); }
+  .month-cell .m-badge {
+    position: absolute;
+    top: 5px; right: 5px;
+    font-size: 8px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .month-cell.best .m-badge { background: rgba(200,240,96,0.2); color: var(--bull); }
+  .month-cell.worst .m-badge { background: rgba(255,107,107,0.2); color: var(--bear); }
+
+  /* MONTH DETAIL PANEL */
+  .month-detail { margin-bottom: 16px; }
+
+  .month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .month-header h2 {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(22px, 5vw, 32px);
+  }
+  .month-header .total-badge {
+    background: rgba(200,240,96,0.08);
+    border: 1px solid rgba(200,240,96,0.3);
+    border-radius: 10px;
+    padding: 10px 18px;
+    text-align: right;
+  }
+  .month-header .total-badge .tb-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .month-header .total-badge .tb-value {
+    font-size: 22px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .month-header .total-badge .tb-change {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  /* CATEGORY SECTIONS */
+  .category-section { margin-bottom: 12px; }
+
+  .cat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .cat-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+  .cat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cat-total {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .cat-change {
+    font-size: 11px;
+    margin-left: 8px;
+  }
+
+  /* ENTRIES */
+  .entry-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .entry-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.2s;
+  }
+  .entry-row:hover { border-color: #333; }
+  .entry-row.editing { border-color: var(--accent); }
+
+  .entry-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'DM Mono', monospace;
+    min-width: 0;
+  }
+  .entry-name:focus { color: var(--accent); }
+
+  .entry-amount {
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'DM Mono', monospace;
+    text-align: right;
+    width: 120px;
+    flex-shrink: 0;
+  }
+  .entry-amount:focus { color: var(--accent); }
+
+  @media (max-width: 400px) {
+    .entry-amount { width: 90px; font-size: 12px; }
+  }
+
+  .entry-tag-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .entry-del {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .entry-del:hover { border-color: var(--bear); color: var(--bear); }
+
+  .entry-change {
+    font-size: 11px;
+    flex-shrink: 0;
+    width: 60px;
+    text-align: right;
+  }
+
+  /* ADD ENTRY BTN */
+  .add-entry-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    width: 100%;
+    margin-top: 6px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .add-entry-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* TAG PICKER POPUP */
+  .tag-picker {
+    position: absolute;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px;
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 130px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .tag-picker.visible { display: flex; }
+  .tag-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s;
+  }
+  .tag-option:hover { background: var(--surface); }
+  .tag-option .tag-opt-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* CHART */
+  .chart-wrap {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  canvas { display: block; width: 100% !important; }
+
+  /* PROGRESS BARS */
+  .progress-bar-wrap { margin-bottom: 10px; }
+  .pb-labels { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; }
+  .pb-labels .left { color: var(--muted); }
+  .pb-labels .right { color: var(--text); }
+  .pb-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .pb-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ADD MONTH BUTTON */
+  .add-month-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px dashed rgba(200,240,96,0.3);
+    border-radius: var(--radius);
+    color: var(--accent);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+  }
+  .add-month-btn:hover { background: rgba(200,240,96,0.04); border-color: var(--accent); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: 100%;
+    max-width: 420px;
+    animation: fadeUp 0.3s ease;
+  }
+  .modal h3 {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  .modal-field { margin-bottom: 14px; }
+  .modal-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .modal-select, .modal-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+    inputmode: numeric;
+  }
+  .modal-select:focus, .modal-input:focus { border-color: var(--accent); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-primary {
+    flex: 1;
+    padding: 13px;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    color: #0e0e0e;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary {
+    flex: 1;
+    padding: 13px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+
+  /* YEAR SECTION HEADER */
+  .section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* STATS */
+  .stats-num {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(24px, 4vw, 36px);
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stats-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  /* CHIPS */
+  .chip {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid;
+    display: inline-block;
+  }
+  .chip.bull { border-color: rgba(200,240,96,0.4); color: var(--bull); background: rgba(200,240,96,0.08); }
+  .chip.bear { border-color: rgba(255,107,107,0.4); color: var(--bear); background: rgba(255,107,107,0.08); }
+  .chip.neutral { border-color: rgba(240,184,96,0.4); color: var(--accent2); background: rgba(240,184,96,0.08); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .empty-state .big { font-size: 32px; margin-bottom: 10px; }
+
+  /* FOOTER */
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 11px;
+    color: #3a3a3a;
+    letter-spacing: 0.1em;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+  }
+
+  /* TOOLTIP */
+  .tooltip {
+    background: rgba(22,22,22,0.97);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 11px;
+    line-height: 1.9;
+    white-space: nowrap;
+    position: absolute;
+    pointer-events: none;
+    z-index: 20;
+    display: none;
+  }
+
+  /* CHART LEGEND */
+  .chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  .tag-picker-container { position: relative; display: inline-block; }
+
+  /* CATEGORY CARD COLORS */
+  .cat-cash    .cat-tag { color: var(--tag-cash); }
+  .cat-invested .cat-tag { color: var(--tag-invested); }
+  .cat-crypto  .cat-tag { color: var(--tag-crypto); }
+  .cat-other   .cat-tag { color: var(--tag-other); }
+
+  /* no-data month cells */
+  .month-cell:not(.has-data) .m-total { color: #444; font-size: 11px; }
+
+  .chart-tab-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .chart-tab {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .chart-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(200,240,96,0.06); }
+  .chart-tab:hover:not(.active) { color: var(--text); }
+
+  .stacked-bar-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .stacked-row { display: flex; align-items: center; gap: 10px; }
+  .stacked-label { font-size: 11px; color: var(--muted); width: 30px; flex-shrink: 0; }
+  .stacked-bar { flex: 1; height: 22px; border-radius: 6px; overflow: hidden; display: flex; }
+  .stacked-seg { height: 100%; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+  .stacked-total { font-size: 11px; color: var(--text); width: 80px; text-align: right; flex-shrink: 0; }
+
+  @media (max-width: 380px) {
+    .month-header { flex-direction: column; align-items: flex-start; }
+    .month-header .total-badge { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="eyebrow"><span></span>Personal Finance</div>
+  <h1>Wealth<span class="accent">Lens</span></h1>
+  <p class="subtitle">Track your net worth month by month · Visualize growth across categories</p>
+
+  <!-- YEAR NAV -->
+  <div class="section-title">Timeline</div>
+  <div class="year-nav" id="yearNav"></div>
+
+  <!-- ADD MONTH BUTTON -->
+  <button class="add-month-btn" id="addMonthBtn">+ Add / Edit Month</button>
+  <!-- ADD YEAR INLINE -->
+  <div id="addYearInline" style="display:none;margin-bottom:16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:10px">Add New Year</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input class="modal-input" id="addYearInput" type="number" placeholder="e.g. 2023" inputmode="numeric"
+        style="max-width:160px;padding:10px 14px;font-size:14px">
+      <button id="addYearConfirm" style="padding:10px 20px;background:var(--accent);border:none;border-radius:10px;color:#0e0e0e;font-family:DM Mono,monospace;font-size:13px;font-weight:500;cursor:pointer">Add Year</button>
+      <button id="addYearCancel" style="padding:10px 16px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:DM Mono,monospace;font-size:13px;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+
+  <!-- MONTH GRID -->
+  <div class="card grid-full" style="animation-delay:0.05s">
+    <div class="card-title accent">Monthly Overview</div>
+    <div class="month-grid" id="monthGrid"></div>
+  </div>
+
+  <!-- MONTH DETAIL -->
+  <div id="monthDetailSection"></div>
+
+  <!-- TREND CHART -->
+  <div class="card grid-full" id="chartCard" style="animation-delay:0.15s;display:none">
+    <div class="card-title accent3">Net Worth Trend</div>
+    <div class="chart-tab-row">
+      <button class="chart-tab active" data-chart="line">Total</button>
+      <button class="chart-tab" data-chart="stacked">By Tag</button>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-legend" id="chartLegend"></div>
+      <canvas id="trendChart" height="220"></canvas>
+      <div class="tooltip" id="chartTooltip"></div>
+    </div>
+  </div>
+
+  <!-- STATS SECTION -->
+  <div id="statsSection"></div>
+
+  <footer>WealthLens · Personal data only — stored locally in your browser · Not financial advice</footer>
+</div>
+
+<!-- TAG PICKER -->
+<div class="tag-picker" id="tagPicker">
+  <div class="tag-option" data-tag="cash"><div class="tag-opt-dot" style="background:var(--tag-cash)"></div>Cash</div>
+  <div class="tag-option" data-tag="invested"><div class="tag-opt-dot" style="background:var(--tag-invested)"></div>Invested</div>
+  <div class="tag-option" data-tag="crypto"><div class="tag-opt-dot" style="background:var(--tag-crypto)"></div>Crypto</div>
+  <div class="tag-option" data-tag="other"><div class="tag-opt-dot" style="background:var(--tag-other)"></div>Other</div>
+</div>
+
+<!-- ADD MONTH MODAL -->
+<div class="modal-overlay" id="addMonthModal">
+  <div class="modal">
+    <h3>Select Month</h3>
+    <div class="modal-field">
+      <div class="modal-label">Year</div>
+      <select class="modal-select" id="modalYear"></select>
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Month</div>
+      <select class="modal-select" id="modalMonth">
+        <option value="0">January</option><option value="1">February</option>
+        <option value="2">March</option><option value="3">April</option>
+        <option value="4">May</option><option value="5">June</option>
+        <option value="6">July</option><option value="7">August</option>
+        <option value="8">September</option><option value="9">October</option>
+        <option value="10">November</option><option value="11">December</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" id="modalCancel">Cancel</button>
+      <button class="btn-primary" id="modalConfirm">Go to Month</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════════
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const TAGS = ['cash','invested','crypto','other'];
+const TAG_COLORS = { cash:'#60c8f0', invested:'#c8f060', crypto:'#f0b860', other:'#a088d0' };
+const TAG_LABELS = { cash:'Cash', invested:'Invested', crypto:'Crypto', other:'Other' };
+
+const STORAGE_KEY = 'wealthlens_v2';
+const YEARS_KEY = 'wealthlens_years';
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+function loadExtraYears() {
+  try { return JSON.parse(localStorage.getItem(YEARS_KEY)) || []; }
+  catch { return []; }
+}
+function saveExtraYears(arr) { localStorage.setItem(YEARS_KEY, JSON.stringify(arr)); }
+
+// data shape: { "2024-5": { entries: [{id, name, tag, amount}] } }
+let data = loadData();
+let extraYears = new Set(loadExtraYears());
+
+// ─── helpers ───────────────────────────────────────
+function monthKey(y, m) { return `${y}-${m}`; }
+function parseKey(k) { const [y,m] = k.split('-'); return { y: +y, m: +m }; }
+
+function getMonth(y, m) {
+  const k = monthKey(y, m);
+  if (!data[k]) data[k] = { entries: [] };
+  return data[k];
+}
+
+function monthTotal(y, m) {
+  const md = data[monthKey(y, m)];
+  if (!md) return null;
+  return md.entries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+}
+
+function tagTotal(y, m, tag) {
+  const md = data[monthKey(y, m)];
+  if (!md) return 0;
+  return md.entries.filter(e => e.tag === tag).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+}
+
+function allYears() {
+  const ys = new Set();
+  const now = new Date();
+  ys.add(now.getFullYear());
+  Object.keys(data).forEach(k => ys.add(parseKey(k).y));
+  extraYears.forEach(y => ys.add(y));
+  return Array.from(ys).sort((a,b) => a-b);
+}
+
+function formatMoney(v, compact=false) {
+  if (v === null || v === undefined) return '—';
+  const abs = Math.abs(v);
+  if (compact) {
+    if (abs >= 1e6) return (v/1e6).toFixed(2) + 'M';
+    if (abs >= 1e3) return (v/1e3).toFixed(1) + 'k';
+    return v.toFixed(0);
+  }
+  return (v < 0 ? '−' : '') + '€' + abs.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function formatPct(v) {
+  if (v === null || !isFinite(v)) return '—';
+  return (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+}
+
+function uid() { return Math.random().toString(36).slice(2,9); }
+
+// ─── copy from prev month ──────────────────────────
+function copyFromPrevMonth(y, m) {
+  let py = y, pm = m - 1;
+  if (pm < 0) { pm = 11; py--; }
+  const prev = data[monthKey(py, pm)];
+  if (!prev) return [];
+  return prev.entries.map(e => ({ ...e, id: uid() }));
+}
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+const now = new Date();
+let currentYear = now.getFullYear();
+let currentMonth = now.getMonth();
+let chartMode = 'line';
+let tagPickerTarget = null; // { entryId }
+
+// ═══════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════
+
+function render() {
+  saveData(data);
+  renderYearNav();
+  renderMonthGrid();
+  renderMonthDetail();
+  renderChart();
+  renderStats();
+}
+
+// ─── YEAR NAV ──────────────────────────────────────
+function renderYearNav() {
+  const yn = document.getElementById('yearNav');
+  const years = allYears();
+
+  let html = `<div class="nav-arrow" id="prevYearBtn">‹</div>`;
+  years.forEach(y => {
+    html += `<button class="year-btn${y===currentYear?' active':''}" data-year="${y}">${y}</button>`;
+  });
+  html += `<div class="nav-arrow" id="nextYearBtn">›</div>`;
+  html += `<button class="year-btn" id="newYearBtn" style="border-style:dashed;border-color:rgba(200,240,96,0.3);color:var(--accent)">+ Year</button>`;
+  yn.innerHTML = html;
+
+  yn.querySelectorAll('.year-btn[data-year]').forEach(b => {
+    b.addEventListener('click', () => { currentYear = +b.dataset.year; render(); });
+  });
+  document.getElementById('prevYearBtn').addEventListener('click', () => {
+    const ys = allYears(); const idx = ys.indexOf(currentYear);
+    if (idx > 0) { currentYear = ys[idx-1]; render(); }
+  });
+  document.getElementById('nextYearBtn').addEventListener('click', () => {
+    const ys = allYears(); const idx = ys.indexOf(currentYear);
+    if (idx < ys.length-1) { currentYear = ys[idx+1]; render(); }
+  });
+  document.getElementById('newYearBtn').addEventListener('click', () => {
+    const inline = document.getElementById('addYearInline');
+    const inp = document.getElementById('addYearInput');
+    inline.style.display = inline.style.display === 'none' ? '' : 'none';
+    if (inline.style.display !== 'none') { inp.value = ''; setTimeout(()=>inp.focus(),50); }
+  });
+}
+
+// ─── YEAR BEST/WORST ─────────────────────────────
+function getYearBestWorst(year) {
+  let best = null, worst = null, bestVal = -Infinity, worstVal = Infinity;
+  for (let m = 0; m < 12; m++) {
+    const t = monthTotal(year, m);
+    if (t === null) continue;
+    if (t > bestVal) { bestVal = t; best = m; }
+    if (t < worstVal) { worstVal = t; worst = m; }
+  }
+  if (best === worst) worst = null; // same month, don't highlight both
+  return { best, worst };
+}
+
+// ─── MONTH GRID ───────────────────────────────────
+function renderMonthGrid() {
+  const grid = document.getElementById('monthGrid');
+  const { best, worst } = getYearBestWorst(currentYear);
+  let html = '';
+  for (let m = 0; m < 12; m++) {
+    const total = monthTotal(currentYear, m);
+    const hasData = total !== null;
+
+    // prev month for change
+    let py = currentYear, pm = m - 1;
+    if (pm < 0) { pm = 11; py--; }
+    const prevTotal = monthTotal(py, pm);
+
+    let changeHtml = '';
+    if (hasData && prevTotal !== null) {
+      const diff = total - prevTotal;
+      const pct = prevTotal !== 0 ? (diff / Math.abs(prevTotal)) * 100 : null;
+      const cls = diff >= 0 ? 'bull' : 'bear';
+      changeHtml = `<div class="m-change ${cls}">${diff>=0?'+':''}${formatMoney(diff, true)}</div>`;
+    }
+
+    let badgeHtml = '';
+    const isBest = best === m && hasData;
+    const isWorst = worst === m && hasData;
+    if (isBest) badgeHtml = `<div class="m-badge">best</div>`;
+    else if (isWorst) badgeHtml = `<div class="m-badge">worst</div>`;
+
+    const classes = [
+      'month-cell',
+      hasData ? 'has-data' : '',
+      m === currentMonth ? 'active' : '',
+      isBest ? 'best' : '',
+      isWorst ? 'worst' : ''
+    ].filter(Boolean).join(' ');
+
+    html += `<div class="${classes}" data-month="${m}">
+      ${badgeHtml}
+      <div class="m-name">${MONTHS[m]}</div>
+      <div class="m-total">${hasData ? formatMoney(total, true) : '—'}</div>
+      ${changeHtml}
+    </div>`;
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll('.month-cell').forEach(c => {
+    c.addEventListener('click', () => { currentMonth = +c.dataset.month; render(); });
+  });
+}
+
+// ─── MONTH DETAIL ─────────────────────────────────
+function renderMonthDetail() {
+  const sec = document.getElementById('monthDetailSection');
+  const k = monthKey(currentYear, currentMonth);
+  const md = data[k] || { entries: [] };
+
+  // prev month
+  let py = currentYear, pm = currentMonth - 1;
+  if (pm < 0) { pm = 11; py--; }
+  const prevKey = monthKey(py, pm);
+  const prevTotal = monthTotal(py, pm);
+  const total = md.entries.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
+  const prevMonthKeyExists = data[prevKey] != null;
+  const diff = prevMonthKeyExists ? total - prevTotal : null;
+  const pct = (diff !== null && prevTotal !== 0) ? (diff / Math.abs(prevTotal)) * 100 : null;
+
+  let changeHtml = '';
+  if (diff !== null) {
+    const cls = diff >= 0 ? 'bull' : 'bear';
+    changeHtml = `
+      <div class="tb-change ${cls}">${diff>=0?'+':'−'}${formatMoney(Math.abs(diff), true)} (${formatPct(pct)}) vs ${MONTHS[pm]}</div>`;
+  }
+
+  // Check if month has prev data to copy
+  const hasPrevData = data[prevKey] && data[prevKey].entries.length > 0;
+  const isNewMonth = !data[k];
+
+  let copyBtnHtml = '';
+  if (isNewMonth && hasPrevData) {
+    copyBtnHtml = `<button class="add-entry-btn" id="copyFromPrevBtn" style="border-style:solid;border-color:rgba(240,184,96,0.3);color:var(--accent2);margin-bottom:12px">
+      ↑ Copy entries from ${MONTHS[pm]} ${py}
+    </button>`;
+  }
+
+  // per-tag sections
+  let tagSections = '';
+  TAGS.forEach(tag => {
+    const entries = md.entries.filter(e => e.tag === tag);
+    const tagSum = entries.reduce((s,e) => s+(parseFloat(e.amount)||0), 0);
+    const prevTagSum = tagTotal(py, pm, tag);
+    const prevMonthExists = data[prevKey] != null;
+    const tagDiff = prevMonthExists ? tagSum - prevTagSum : null;
+    const tagPct = (tagDiff !== null && prevTagSum !== 0) ? (tagDiff / Math.abs(prevTagSum)) * 100 : null;
+
+    let tagChangeHtml = '';
+    if (tagDiff !== null && prevTagSum !== null) {
+      const cls = tagDiff >= 0 ? 'bull' : 'bear';
+      tagChangeHtml = `<span class="cat-change ${cls}">${tagDiff>=0?'+':''}${formatMoney(tagDiff, true)} (${formatPct(tagPct)})</span>`;
+    }
+
+    let entriesHtml = '';
+    entries.forEach(e => {
+      const prevEntry = (data[prevKey]?.entries || []).find(pe => pe.name === e.name);
+      const eDiff = prevEntry ? (parseFloat(e.amount)||0) - (parseFloat(prevEntry.amount)||0) : null;
+      const eCls = eDiff === null ? '' : (eDiff >= 0 ? 'bull' : 'bear');
+      const eDiffTxt = eDiff !== null ? `<span class="entry-change ${eCls}">${eDiff>=0?'+':''}${formatMoney(eDiff,true)}</span>` : `<span class="entry-change"></span>`;
+
+      entriesHtml += `<div class="entry-row" data-id="${e.id}">
+        <div class="tag-picker-container">
+          <div class="entry-tag-dot" style="background:${TAG_COLORS[e.tag]}" data-tagdot="${e.id}" title="Change tag"></div>
+        </div>
+        <input class="entry-name" value="${e.name}" data-field="name" data-id="${e.id}" placeholder="Name">
+        <input class="entry-amount" value="${e.amount}" data-field="amount" data-id="${e.id}" inputmode="decimal" placeholder="0.00">
+        ${eDiffTxt}
+        <button class="entry-del" data-del="${e.id}">×</button>
+      </div>`;
+    });
+
+    tagSections += `<div class="category-section cat-${tag}">
+      <div class="cat-header">
+        <div class="cat-tag">
+          <div class="cat-dot" style="background:${TAG_COLORS[tag]}"></div>
+          ${TAG_LABELS[tag]}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="cat-total">${formatMoney(tagSum)}</span>
+          ${tagChangeHtml}
+        </div>
+      </div>
+      <div class="entry-list">${entriesHtml}</div>
+      <button class="add-entry-btn add-entry-tag-btn" data-tag="${tag}">+ Add ${TAG_LABELS[tag]} entry</button>
+    </div>`;
+  });
+
+  sec.innerHTML = `<div class="card grid-full month-detail" style="animation-delay:0.1s">
+    <div class="month-header">
+      <h2>${MONTHS_FULL[currentMonth]} ${currentYear}</h2>
+      <div class="total-badge">
+        <div class="tb-label">Net Worth</div>
+        <div class="tb-value">${formatMoney(total)}</div>
+        ${changeHtml}
+      </div>
+    </div>
+    ${copyBtnHtml}
+    ${tagSections}
+  </div>`;
+
+  // Events
+  if (document.getElementById('copyFromPrevBtn')) {
+    document.getElementById('copyFromPrevBtn').addEventListener('click', () => {
+      getMonth(currentYear, currentMonth).entries = copyFromPrevMonth(currentYear, currentMonth);
+      render();
+    });
+  }
+
+  sec.querySelectorAll('.add-entry-tag-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const tag = b.dataset.tag;
+      const month = getMonth(currentYear, currentMonth);
+      month.entries.push({ id: uid(), name: '', tag, amount: '' });
+      render();
+      // focus last input
+      setTimeout(() => {
+        const rows = document.querySelectorAll(`.entry-row`);
+        const last = Array.from(rows).reverse().find(r => {
+          const dot = r.querySelector('.entry-tag-dot');
+          return dot && dot.style.background.includes(TAG_COLORS[tag].replace('#','').toLowerCase().replace(/([0-9a-f]{2})/g,(m,p1)=>parseInt(p1,16)));
+        });
+        if (last) last.querySelector('.entry-name')?.focus();
+      }, 50);
+    });
+  });
+
+  // Entry input changes
+  sec.querySelectorAll('.entry-name, .entry-amount').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const month = getMonth(currentYear, currentMonth);
+      const entry = month.entries.find(e => e.id === inp.dataset.id);
+      if (entry) {
+        entry[inp.dataset.field] = inp.value;
+        saveData(data);
+        // Debounce full re-render for chart
+        clearTimeout(inp._rt);
+        inp._rt = setTimeout(() => { renderMonthGrid(); renderChart(); renderStats(); renderMonthDetail(); }, 600);
+      }
+    });
+  });
+
+  // Delete
+  sec.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const month = getMonth(currentYear, currentMonth);
+      month.entries = month.entries.filter(e => e.id !== btn.dataset.del);
+      render();
+    });
+  });
+
+  // Tag dot click
+  sec.querySelectorAll('[data-tagdot]').forEach(dot => {
+    dot.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      tagPickerTarget = dot.dataset.tagdot;
+      const picker = document.getElementById('tagPicker');
+      const rect = dot.getBoundingClientRect();
+      picker.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+      picker.style.left = (rect.left + window.scrollX) + 'px';
+      picker.classList.add('visible');
+      picker.style.position = 'absolute';
+    });
+  });
+}
+
+// Tag picker
+document.getElementById('tagPicker').querySelectorAll('.tag-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    if (!tagPickerTarget) return;
+    const month = getMonth(currentYear, currentMonth);
+    const entry = month.entries.find(e => e.id === tagPickerTarget);
+    if (entry) entry.tag = opt.dataset.tag;
+    tagPickerTarget = null;
+    document.getElementById('tagPicker').classList.remove('visible');
+    render();
+  });
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#tagPicker') && !e.target.closest('[data-tagdot]')) {
+    document.getElementById('tagPicker').classList.remove('visible');
+  }
+});
+
+// ─── CHART ────────────────────────────────────────
+let chartInstance = null;
+
+function getChartData() {
+  const labels = [];
+  const totals = [];
+  const tagData = {};
+  TAGS.forEach(t => tagData[t] = []);
+
+  // collect all months with data across all years
+  const allMonths = [];
+  const years = allYears();
+  years.forEach(y => {
+    for (let m = 0; m < 12; m++) {
+      const t = monthTotal(y, m);
+      if (t !== null) allMonths.push({ y, m, t });
+    }
+  });
+  allMonths.sort((a,b) => a.y !== b.y ? a.y-b.y : a.m-b.m);
+  allMonths.forEach(({ y, m, t }) => {
+    labels.push(`${MONTHS[m]} ${y}`);
+    totals.push(t);
+    TAGS.forEach(tag => tagData[tag].push(tagTotal(y, m, tag)));
+  });
+
+  return { labels, totals, tagData };
+}
+
+function renderChart() {
+  const card = document.getElementById('chartCard');
+  const { labels, totals, tagData } = getChartData();
+
+  if (labels.length < 2) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  // Legend
+  const legendEl = document.getElementById('chartLegend');
+  if (chartMode === 'line') {
+    legendEl.innerHTML = `<div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Net Worth</div>`;
+  } else {
+    legendEl.innerHTML = TAGS.map(t => `<div class="legend-item"><div class="legend-dot" style="background:${TAG_COLORS[t]}"></div>${TAG_LABELS[t]}</div>`).join('');
+  }
+
+  const canvas = document.getElementById('trendChart');
+  drawChart(canvas, labels, totals, tagData);
+}
+
+function drawChart(canvas, labels, totals, tagData) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth - 32;
+  const h = 220;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { top: 20, right: 16, bottom: 36, left: 60 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+  const n = labels.length;
+
+  if (chartMode === 'line') {
+    const minV = Math.min(...totals);
+    const maxV = Math.max(...totals);
+    const range = maxV - minV || 1;
+
+    function xp(i) { return pad.left + (i / (n-1)) * cw; }
+    function yp(v) { return pad.top + ch - ((v - minV) / range) * ch; }
+
+    // grid
+    ctx.strokeStyle = '#1f1f1f';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (ch / 4) * i;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+      const val = maxV - (range / 4) * i;
+      ctx.fillStyle = '#555'; ctx.font = '10px DM Mono, monospace'; ctx.textAlign = 'right';
+      ctx.fillText(formatMoney(val, true), pad.left - 6, y + 4);
+    }
+
+    // fill
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+    grad.addColorStop(0, 'rgba(200,240,96,0.18)');
+    grad.addColorStop(1, 'rgba(200,240,96,0.01)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(xp(0), yp(totals[0]));
+    totals.forEach((v,i) => { if (i>0) ctx.lineTo(xp(i), yp(v)); });
+    ctx.lineTo(xp(n-1), pad.top + ch);
+    ctx.lineTo(xp(0), pad.top + ch);
+    ctx.closePath(); ctx.fill();
+
+    // line
+    ctx.strokeStyle = '#c8f060';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#c8f060'; ctx.shadowBlur = 8;
+    ctx.beginPath();
+    totals.forEach((v,i) => { i===0 ? ctx.moveTo(xp(i), yp(v)) : ctx.lineTo(xp(i), yp(v)); });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // dots
+    totals.forEach((v,i) => {
+      ctx.fillStyle = '#c8f060';
+      ctx.beginPath(); ctx.arc(xp(i), yp(v), 3.5, 0, Math.PI*2); ctx.fill();
+    });
+
+  } else {
+    // stacked bar
+    const maxV = Math.max(...totals);
+    const bw = Math.max(8, (cw / n) - 6);
+    const barGap = cw / n;
+
+    // grid
+    ctx.strokeStyle = '#1f1f1f'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (ch/4)*i;
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+cw, y); ctx.stroke();
+      const val = maxV - (maxV/4)*i;
+      ctx.fillStyle = '#555'; ctx.font = '10px DM Mono, monospace'; ctx.textAlign = 'right';
+      ctx.fillText(formatMoney(val, true), pad.left-6, y+4);
+    }
+
+    labels.forEach((_, i) => {
+      const bwActual = Math.max(6, Math.min(bw, 28));
+      const x = pad.left + i * barGap + (barGap - bwActual) / 2;
+      let yBase = pad.top + ch;
+      TAGS.forEach(tag => {
+        const v = tagData[tag][i] || 0;
+        if (v <= 0) return;
+        const bh = (v / maxV) * ch;
+        ctx.fillStyle = TAG_COLORS[tag];
+        ctx.fillRect(x, yBase - bh, bwActual, bh);
+        if (bh > 16 && totals[i] > 0) {
+          const pct = Math.round((v / totals[i]) * 100);
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.font = 'bold 8px DM Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(pct + '%', x + bwActual / 2, yBase - bh / 2 + 3);
+        }
+        yBase -= bh;
+      });
+    });
+  }
+
+  // x labels — single letter when all same year, full label otherwise
+  const allSameYear = labels.length > 0 && labels.every(l => l.slice(-4) === labels[0].slice(-4));
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  const step = Math.max(1, Math.ceil(n / 12));
+  labels.forEach((l, i) => {
+    if (i % step !== 0 && i !== n - 1) return;
+    let lbl, fontSize;
+    if (allSameYear) {
+      lbl = l[0]; // single letter
+      fontSize = '10px';
+    } else {
+      lbl = l;
+      fontSize = '9px';
+    }
+    ctx.font = fontSize + ' DM Mono, monospace';
+    const xpos = chartMode === 'line'
+      ? pad.left + (n > 1 ? (i / (n - 1)) * cw : cw / 2)
+      : pad.left + i * (cw / n) + (cw / n) / 2;
+    ctx.fillText(lbl, xpos, h - 8);
+  });
+
+  // hover tooltip
+  canvas._chartData = { labels, totals, tagData, pad, cw, ch, n };
+  canvas._chartMode = chartMode;
+}
+
+// Chart tooltip
+(function() {
+  const canvas = document.getElementById('trendChart');
+  const tooltip = document.getElementById('chartTooltip');
+
+  function onMove(cx) {
+    const d = canvas._chartData;
+    if (!d) return;
+    const { labels, totals, tagData, pad, cw, ch, n } = d;
+    const rect = canvas.getBoundingClientRect();
+    const x = cx - rect.left;
+
+    let idx;
+    if (canvas._chartMode === 'line') {
+      idx = Math.round(((x - pad.left) / cw) * (n-1));
+    } else {
+      idx = Math.floor((x - pad.left) / (cw / n));
+    }
+    if (idx < 0 || idx >= n) { tooltip.style.display='none'; return; }
+
+    let html = `<div style="color:var(--accent);margin-bottom:3px">${labels[idx]}</div>`;
+    html += `<div style="margin-bottom:4px">Total: <b>${formatMoney(totals[idx])}</b></div>`;
+    if (canvas._chartMode === 'stacked') {
+      TAGS.forEach(t => {
+        const v = tagData[t][idx];
+        if (v > 0) {
+          const pct = totals[idx] > 0 ? Math.round((v / totals[idx]) * 100) : 0;
+          html += `<div style="color:${TAG_COLORS[t]}">${TAG_LABELS[t]}: ${formatMoney(v)} <span style="opacity:.55">(${pct}%)</span></div>`;
+        }
+      });
+    }
+
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    const tw = tooltip.offsetWidth;
+    let left = x + 14;
+    if (left + tw > rect.width - 10) left = x - tw - 10;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = '30px';
+  }
+
+  canvas.addEventListener('mousemove', e => onMove(e.clientX));
+  canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    onMove(e.touches[0].clientX);
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => { tooltip.style.display = 'none'; });
+})();
+
+// Add year inline handlers
+document.getElementById('addYearConfirm').addEventListener('click', () => {
+  const v = document.getElementById('addYearInput').value.trim();
+  const y = parseInt(v, 10);
+  if (v && !isNaN(y) && y > 1900 && y < 2100) {
+    extraYears.add(y);
+    saveExtraYears(Array.from(extraYears));
+    currentYear = y;
+    document.getElementById('addYearInline').style.display = 'none';
+    render();
+  } else {
+    document.getElementById('addYearInput').style.borderColor = 'var(--bear)';
+    setTimeout(() => document.getElementById('addYearInput').style.borderColor = '', 1000);
+  }
+});
+document.getElementById('addYearCancel').addEventListener('click', () => {
+  document.getElementById('addYearInline').style.display = 'none';
+});
+document.getElementById('addYearInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('addYearConfirm').click();
+  if (e.key === 'Escape') document.getElementById('addYearCancel').click();
+});
+
+// Chart tabs
+document.querySelectorAll('.chart-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.chart-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    chartMode = t.dataset.chart;
+    renderChart();
+  });
+});
+
+// ─── STATS ────────────────────────────────────────
+function renderStats() {
+  const sec = document.getElementById('statsSection');
+  const { labels, totals, tagData } = getChartData();
+
+  if (labels.length < 2) { sec.innerHTML=''; return; }
+
+  const maxNW = Math.max(...totals);
+  const minNW = Math.min(...totals);
+  const lastNW = totals[totals.length-1];
+  const firstNW = totals[0];
+  const totalGrowth = firstNW !== 0 ? ((lastNW - firstNW) / Math.abs(firstNW)) * 100 : null;
+
+  // monthly changes
+  const changes = [];
+  for (let i = 1; i < totals.length; i++) {
+    changes.push(totals[i] - totals[i-1]);
+  }
+  const avgChange = changes.reduce((s,v)=>s+v,0) / changes.length;
+  const bestMonthIdx = changes.indexOf(Math.max(...changes)) + 1;
+  const worstMonthIdx = changes.indexOf(Math.min(...changes)) + 1;
+
+  // positive months
+  const posMos = changes.filter(c => c > 0).length;
+  const negMos = changes.filter(c => c < 0).length;
+
+  // biggest absolute jump
+  const maxGain = Math.max(...changes);
+  const maxLoss = Math.min(...changes);
+
+  // tag breakdowns (latest)
+  const latestTagPcts = TAGS.map(t => {
+    const v = tagData[t][tagData[t].length-1] || 0;
+    return { tag: t, v, pct: lastNW > 0 ? (v/lastNW)*100 : 0 };
+  });
+
+  sec.innerHTML = `
+  <div class="section-title" style="margin-top:24px">Analytics</div>
+
+  <div class="grid-3" style="animation-delay:0.2s">
+    <div class="card">
+      <div class="card-title accent">Peak Net Worth</div>
+      <div class="stats-num">${formatMoney(maxNW, true)}</div>
+      <div class="stats-label">${labels[totals.indexOf(maxNW)]}</div>
+    </div>
+    <div class="card">
+      <div class="card-title accent2">Total Growth</div>
+      <div class="stats-num" style="color:var(--accent2)">${totalGrowth !== null ? formatPct(totalGrowth) : '—'}</div>
+      <div class="stats-label">Since ${labels[0]}</div>
+    </div>
+    <div class="card">
+      <div class="card-title accent3">Avg Monthly Change</div>
+      <div class="stats-num" style="color:${avgChange>=0?'var(--bull)':'var(--bear)'}">${formatMoney(avgChange, true)}</div>
+      <div class="stats-label">${posMos} up · ${negMos} down</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="animation-delay:0.25s">
+    <div class="card">
+      <div class="card-title accent">Best &amp; Worst Month</div>
+      <div class="stat-row">
+        <span class="label">Best gain</span>
+        <span class="value bull">${formatMoney(maxGain)} — ${labels[bestMonthIdx]}</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Worst month</span>
+        <span class="value bear">${formatMoney(maxLoss)} — ${labels[worstMonthIdx]}</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Months tracked</span>
+        <span class="value">${labels.length}</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Current vs start</span>
+        <span class="value ${lastNW >= firstNW ? 'bull':'bear'}">${formatMoney(lastNW - firstNW)}</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title purple">Latest Allocation</div>
+      ${latestTagPcts.map(({ tag, v, pct }) => `
+        <div class="progress-bar-wrap">
+          <div class="pb-labels">
+            <span class="left" style="color:${TAG_COLORS[tag]}">${TAG_LABELS[tag]}</span>
+            <span class="right">${formatMoney(v)} · ${pct.toFixed(1)}%</span>
+          </div>
+          <div class="pb-track">
+            <div class="pb-fill" style="width:${pct}%;background:${TAG_COLORS[tag]}"></div>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="card grid-full" style="animation-delay:0.3s">
+    <div class="card-title accent2">Year-over-Year Summary</div>
+    ${renderYoySummary()}
+  </div>`;
+}
+
+function renderYoySummary() {
+  const years = allYears();
+  if (years.length === 0) return '<div class="empty-state">No data yet</div>';
+  let html = '';
+  years.forEach(y => {
+    const months = [];
+    for (let m = 0; m < 12; m++) {
+      const t = monthTotal(y, m);
+      if (t !== null) months.push({ m, t });
+    }
+    if (months.length === 0) return;
+    const last = months[months.length-1].t;
+    const first = months[0].t;
+    const diff = last - first;
+    const pct = first !== 0 ? (diff / Math.abs(first)) * 100 : null;
+    const cls = diff >= 0 ? 'bull' : 'bear';
+    html += `<div class="stat-row">
+      <span class="label">${y} · ${months.length} months</span>
+      <span class="value">
+        ${formatMoney(last)}
+        <span class="${cls}" style="margin-left:10px;font-size:11px">${diff>=0?'+':''}${formatMoney(diff, true)} (${formatPct(pct)})</span>
+      </span>
+    </div>`;
+  });
+  return html || '<div class="empty-state">Add data to see summary</div>';
+}
+
+// ─── ADD MONTH MODAL ──────────────────────────────
+const modal = document.getElementById('addMonthModal');
+const modalYear = document.getElementById('modalYear');
+const modalMonth = document.getElementById('modalMonth');
+
+document.getElementById('addMonthBtn').addEventListener('click', () => {
+  // populate years
+  const ys = allYears();
+  const yn = new Date().getFullYear();
+  const extraYears = new Set([...ys, yn, yn+1]);
+  modalYear.innerHTML = Array.from(extraYears).sort().map(y => `<option value="${y}" ${y===currentYear?'selected':''}>${y}</option>`).join('');
+  modalMonth.value = currentMonth;
+  modal.classList.add('visible');
+});
+
+document.getElementById('modalCancel').addEventListener('click', () => modal.classList.remove('visible'));
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('visible'); });
+
+document.getElementById('modalConfirm').addEventListener('click', () => {
+  currentYear = +modalYear.value;
+  currentMonth = +modalMonth.value;
+  extraYears.add(currentYear);
+  saveExtraYears(Array.from(extraYears));
+  getMonth(currentYear, currentMonth);
+  modal.classList.remove('visible');
+  render();
+});
+
+// ─── RESIZE ───────────────────────────────────────
+window.addEventListener('resize', () => { renderChart(); });
+
+// ─── INIT ─────────────────────────────────────────
+// seed demo data if empty
+if (Object.keys(data).length === 0) {
+  const y = now.getFullYear();
+  const seed = [
+    { m: 0, entries: [{id:uid(),name:'Checking',tag:'cash',amount:'2100'},{id:uid(),name:'Savings',tag:'cash',amount:'4800'},{id:uid(),name:'ETF Portfolio',tag:'invested',amount:'7200'},{id:uid(),name:'Bitcoin',tag:'crypto',amount:'1400'},{id:uid(),name:'Misc',tag:'other',amount:'500'}] },
+    { m: 1, entries: [{id:uid(),name:'Checking',tag:'cash',amount:'2300'},{id:uid(),name:'Savings',tag:'cash',amount:'5000'},{id:uid(),name:'ETF Portfolio',tag:'invested',amount:'7800'},{id:uid(),name:'Bitcoin',tag:'crypto',amount:'1900'},{id:uid(),name:'Misc',tag:'other',amount:'500'}] },
+    { m: 2, entries: [{id:uid(),name:'Checking',tag:'cash',amount:'1900'},{id:uid(),name:'Savings',tag:'cash',amount:'5000'},{id:uid(),name:'ETF Portfolio',tag:'invested',amount:'7100'},{id:uid(),name:'Bitcoin',tag:'crypto',amount:'1200'},{id:uid(),name:'Misc',tag:'other',amount:'450'}] },
+    { m: 3, entries: [{id:uid(),name:'Checking',tag:'cash',amount:'2600'},{id:uid(),name:'Savings',tag:'cash',amount:'5500'},{id:uid(),name:'ETF Portfolio',tag:'invested',amount:'8400'},{id:uid(),name:'Bitcoin',tag:'crypto',amount:'2500'},{id:uid(),name:'Misc',tag:'other',amount:'600'}] },
+    { m: 4, entries: [{id:uid(),name:'Checking',tag:'cash',amount:'2800'},{id:uid(),name:'Savings',tag:'cash',amount:'5800'},{id:uid(),name:'ETF Portfolio',tag:'invested',amount:'8900'},{id:uid(),name:'Bitcoin',tag:'crypto',amount:'2900'},{id:uid(),name:'Misc',tag:'other',amount:'600'}] },
+  ];
+  seed.forEach(({ m, entries }) => { data[monthKey(y, m)] = { entries }; });
+  saveData(data);
+}
+
+render();
+</script>
+</body>
+</html>
