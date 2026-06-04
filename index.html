@@ -450,27 +450,39 @@ async function geocodeQuery(q, count) {
 async function loadWeather(lat, lon, label) {
   setLoading(true);
   currentLat=lat; currentLon=lon;
-  const url = 'https://api.open-meteo.com/v1/forecast'
+  const base = 'https://api.open-meteo.com/v1/forecast'
     + '?latitude='+lat+'&longitude='+lon
     + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,uv_index,is_day'
     + '&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,is_day'
     + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset'
+    + '&timezone=auto&forecast_days=7';
+  // known-good minimal request (no is_day/precipitation) as a last resort
+  const minimal = 'https://api.open-meteo.com/v1/forecast'
+    + '?latitude='+lat+'&longitude='+lon
+    + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,uv_index'
+    + '&hourly=temperature_2m,weather_code,precipitation_probability'
+    + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset'
     + '&timezone=auto&forecast_days=7&models=best_match';
-  try {
-    const c = new AbortController(); setTimeout(()=>c.abort(),10000);
-    const res = await fetch(url, {signal:c.signal});
-    if (!res.ok) throw new Error('HTTP '+res.status);
-    const d = await res.json();
-    if (!d.current) throw new Error('Unexpected response');
-    d._label = label;
-    renderWeather(d);
-    setupHistorical();
-  } catch(e) {
-    let msg='Could not load weather data.', hint='';
-    if (e.name==='AbortError') hint='Request timed out — please try again.';
-    else hint='Please check your connection and try again.';
-    showError(msg, hint);
+  const urls = [ base + '&models=best_match', base, minimal ];
+  let lastErr=null;
+  for (const url of urls) {
+    try {
+      const c = new AbortController(); const t=setTimeout(()=>c.abort(),10000);
+      const res = await fetch(url, {signal:c.signal}); clearTimeout(t);
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const d = await res.json();
+      if (d.error) throw new Error(d.reason || 'API error');
+      if (!d.current) throw new Error('Unexpected response');
+      d._label = label;
+      renderWeather(d);
+      setupHistorical();
+      return;
+    } catch(e) { lastErr=e; if (e.name==='AbortError') break; }
   }
+  const hint = (lastErr && lastErr.name==='AbortError')
+    ? 'Request timed out — please try again.'
+    : 'Please check your connection and try again.';
+  showError('Could not load weather data.', hint);
 }
 
 // ── RENDER ───────────────────────────────────────────────────────
